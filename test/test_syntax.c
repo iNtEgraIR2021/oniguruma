@@ -65,7 +65,7 @@ static void xx(char* pattern, char* str, int from, int to, int mem, int not,
   r = onig_search(reg, (UChar* )str, (UChar* )(str + SLEN(str)),
                   (UChar* )str, (UChar* )(str + SLEN(str)),
                   region, ONIG_OPTION_NONE);
-  if (r < ONIG_MISMATCH) {
+  if (r < ONIG_MISMATCH || error_no < ONIG_MISMATCH) {
     char s[ONIG_MAX_ERROR_MESSAGE_LEN];
 
     if (error_no == 0) {
@@ -223,6 +223,20 @@ static int test_look_behind()
   return 0;
 }
 
+static int test_char_class()
+{
+  x2("[\\w\\-%]", "a", 0, 1);
+  x2("[\\w\\-%]", "%", 0, 1);
+  x2("[\\w\\-%]", "-", 0, 1);
+
+  //e("[\\w-%]", "-", ONIGERR_UNMATCHED_RANGE_SPECIFIER_IN_CHAR_CLASS);
+  x2("[\\w-%]", "a", 0, 1);
+  x2("[\\w-%]", "%", 0, 1);
+  x2("[\\w-%]", "-", 0, 1);
+
+  return 0;
+}
+
 static int test_python_option_ascii()
 {
   x2("(?a)\\w", "a", 0, 1);
@@ -311,6 +325,7 @@ extern int main(int argc, char* argv[])
   test_isolated_option();
   test_prec_read();
   test_look_behind();
+  test_char_class();
   e("(?<=ab|(.))\\1", "abb", ONIGERR_INVALID_LOOK_BEHIND_PATTERN); // Variable length lookbehind not implemented in Perl 5.26.1
 
   x3("()", "abc", 0, 0, 1);
@@ -325,6 +340,10 @@ extern int main(int argc, char* argv[])
   test_isolated_option();
   test_prec_read();
   test_look_behind();
+  test_char_class();
+
+  n("[[:digit:]]", "1");
+  x2("[[:digit:]]", "g", 0, 1);
   x2("(?<=ab|(.))\\1", "abb", 2, 3);
   n("(?<!ab|b)c", "bbc");
   n("(?<!b|ab)c", "bbc");
@@ -335,6 +354,9 @@ extern int main(int argc, char* argv[])
   test_python_option_ascii();
   test_python_z();
   test_python_single_multi();
+
+  n("[[:digit:]]", "1");
+  x2("[[:digit:]]", "g]", 0, 2);
   x2("(?P<name>abc)", "abc", 0, 3);
   x2("(?P<name>abc)(?P=name)", "abcabc", 0, 6);
   x2("(?P<name>abc){0}(?P>name)", "abc", 0, 3);
@@ -365,6 +387,11 @@ extern int main(int argc, char* argv[])
   x2("^{1,2}", "{1,2}", 0, 5);
   x2("\\({1,2}\\)", "{1,2}", 0, 5);
   x2("^\\({1,2}\\)", "{1,2}", 0, 5);
+
+  Syntax = ONIG_SYNTAX_EMACS;
+  x2("\\(abc\\)", "abc", 0, 3);
+  x2("\\(?:abc\\)", "abc", 0, 3);
+  x3("\\(?:abc\\)\\(xyz\\)", "abcxyz", 3, 6, 1);
 
   Syntax = ONIG_SYNTAX_PERL_NG;
 
